@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>拆彈小英雄：乘法公式大挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Varela Round', 'Noto Sans TC', sans-serif;
+            background-color: #fdfbf7; /* 溫暖的奶油底色 */
+            touch-action: manipulation; /* 避免手機端點擊放大 */
+            overflow: hidden;
+        }
+
+        /* 炸彈呼吸與緊張動畫 */
+        @keyframes idle-breathe {
+            0%, 100% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.02) translateY(-5px); }
+        }
+        @keyframes panic-shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        
+        /* 火花閃爍動畫 */
+        @keyframes spark-flash {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.3); }
+        }
+
+        /* 成功拆除的跳躍動畫 */
+        @keyframes success-jump {
+            0% { transform: scale(1) translateY(0); }
+            40% { transform: scale(0.9) translateY(10px); }
+            70% { transform: scale(1.1) translateY(-30px); }
+            100% { transform: scale(1) translateY(0); }
+        }
+
+        .anim-idle { animation: idle-breathe 2s infinite ease-in-out; }
+        .anim-panic { animation: panic-shake 0.3s infinite; }
+        .anim-spark { animation: spark-flash 0.1s infinite; transform-origin: center; }
+        .anim-success { animation: success-jump 0.8s ease-out; }
+        
+        /* 選項按鈕的立體可愛風格 */
+        .cute-btn {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.1);
+        }
+        .cute-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.1);
+        }
+
+        /* 超上標的微調，讓 x² 更好看 */
+        sup {
+            font-size: 0.6em;
+            margin-left: 2px;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-center relative">
+
+    <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center bg-blue-100 z-50">
+        <div class="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm w-11/12 border-4 border-blue-300">
+            <h1 class="text-4xl font-black text-blue-600 mb-4 tracking-wide">拆彈小英雄</h1>
+            <p class="text-lg text-gray-600 mb-2 font-bold">乘法公式大挑戰</p>
+            <p class="text-sm text-gray-500 mb-6 bg-blue-50 p-3 rounded-xl">
+                炸彈即將爆炸！<br>請找出對應的「因式分解」密碼來解除危機！
+            </p>
+            <button onclick="startGame()" class="cute-btn bg-pink-400 hover:bg-pink-500 text-white text-2xl font-bold py-4 px-10 rounded-full w-full">
+                開始拆彈！
+            </button>
+        </div>
+    </div>
+
+    <div id="game-screen" class="hidden flex-col w-full h-full max-w-lg mx-auto bg-blue-50 relative">
+        
+        <!-- 頂部資訊列 -->
+        <div class="flex justify-between items-center p-4 bg-white shadow-sm rounded-b-2xl mx-2 mt-2">
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">⭐</span>
+                <span id="score-display" class="text-2xl font-black text-yellow-500">0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-2xl">⏱️</span>
+                <span id="time-display" class="text-2xl font-black text-red-500">15.0</span>
+            </div>
+        </div>
+
+        <!-- 炸彈顯示區 -->
+        <div class="flex-1 flex flex-col items-center justify-center relative mt-4">
+            
+            <!-- SVG 炸彈容器 -->
+            <div id="bomb-container" class="anim-idle relative">
+                <svg width="240" height="240" viewBox="0 0 200 200" id="bomb-svg">
+                    <!-- 引線 -->
+                    <path id="fuse-line" d="M100 50 Q130 20 160 30" stroke="#8B4513" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    <!-- 火花 (預設顯示) -->
+                    <g id="spark" class="anim-spark" transform="translate(160, 30)">
+                        <path d="M0 -15 L3 -5 L13 -8 L6 0 L13 8 L3 5 L0 15 L-3 5 L-13 8 L-6 0 L-13 -8 L-3 -5 Z" fill="#FFA500"/>
+                        <circle cx="0" cy="0" r="4" fill="#FFFF00"/>
+                    </g>
+                    <!-- 炸彈蓋 -->
+                    <rect x="85" y="45" width="30" height="15" fill="#4B5563" rx="4"/>
+                    <rect x="90" y="40" width="20" height="5" fill="#374151" rx="2"/>
+                    <!-- 炸彈本體 -->
+                    <circle cx="100" cy="115" r="60" fill="#1F2937"/>
+                    <!-- 炸彈高光 -->
+                    <path d="M 55 90 A 45 45 0 0 1 85 65" stroke="rgba(255,255,255,0.2)" stroke-width="6" fill="none" stroke-linecap="round"/>
+                    
+                    <!-- 臉部表情 -->
+                    <g id="bomb-face">
+                        <!-- 眼睛 (預設: 普通) -->
+                        <circle id="eye-l" cx="80" cy="100" r="5" fill="#fff"/>
+                        <circle id="eye-r" cy="100" r="5" fill="#fff" cx="120"/>
+                        <!-- 嘴巴 (預設: 微笑) -->
+                        <path id="mouth" d="M 90 115 Q 100 125 110 115" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+                        <!-- 汗水 (預設隱藏) -->
+                        <path id="sweat" d="M 125 80 Q 135 80 135 90 Q 135 100 125 100 Q 115 100 125 80 Z" fill="#60A5FA" opacity="0"/>
+                    </g>
+                </svg>
+
+                <!-- 顯示數學公式 (炸彈肚子上的螢幕) -->
+                <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 w-4/5 text-center">
+                    <div class="bg-gray-800 text-green-400 font-mono text-xl py-2 px-3 rounded-lg border-2 border-gray-600 shadow-inner">
+                        <span id="question-display">x<sup>2</sup> - 25</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 pb-8 w-full bg-white rounded-t-3xl shadow-[0_-4px_15px_rgba(0,0,0,0.05)] mt-auto">
+            <p class="text-center text-gray-500 font-bold mb-3 text-sm">選擇正確的密碼拆除炸彈！</p>
+            <div class="grid grid-cols-2 gap-4" id="options-container">
+                <!-- 按鈕由 JS 動態生成 -->
+            </div>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-gray-900 bg-opacity-90 z-50">
+        <div class="bg-white p-8 rounded-3xl shadow-xl text-center max-w-sm w-11/12 border-4 border-red-400">
+            <div class="text-6xl mb-4">💥</div>
+            <h2 class="text-3xl font-black text-red-500 mb-2">爆炸了！</h2>
+            <p class="text-gray-600 font-bold mb-4">你總共拆除了 <span id="final-score" class="text-2xl text-blue-600">0</span> 顆炸彈</p>
+            
+            <div class="bg-gray-100 p-4 rounded-xl mb-6 text-left text-sm">
+                <p class="text-gray-500 mb-1">剛剛的正確密碼是：</p>
+                <p id="correct-answer-display" class="font-bold text-lg text-gray-800 text-center"></p>
+            </div>
+
+            <button onclick="startGame()" class="cute-btn bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold py-3 px-8 rounded-full w-full">
+                再來一次
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 遊戲狀態變數
+        let score = 0;
+        let timeLeft = 15.0;
+        let timerInterval;
+        let isPlaying = false;
+        let currentCorrectAnswer = "";
+        
+        // DOM 元素取得
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const scoreDisplay = document.getElementById('score-display');
+        const timeDisplay = document.getElementById('time-display');
+        const questionDisplay = document.getElementById('question-display');
+        const optionsContainer = document.getElementById('options-container');
+        const bombContainer = document.getElementById('bomb-container');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const correctAnswerDisplay = document.getElementById('correct-answer-display');
+
+        // SVG 炸彈表情元素
+        const eyeL = document.getElementById('eye-l');
+        const eyeR = document.getElementById('eye-r');
+        const mouth = document.getElementById('mouth');
+        const sweat = document.getElementById('sweat');
+        const spark = document.getElementById('spark');
+
+        // 色彩配置 (四個選項的按鈕顏色)
+        const btnColors = [
+            'bg-pink-400 hover:bg-pink-500', 
+            'bg-blue-400 hover:bg-blue-500', 
+            'bg-green-400 hover:bg-green-500', 
+            'bg-purple-400 hover:bg-purple-500'
+        ];
+
+        // 產生題目與選項
+        function generateQuestion() {
+            // 隨機選擇一種題型: 0=平方差, 1=和的平方, 2=差的平方
+            const type = Math.floor(Math.random() * 3);
+            const a = Math.floor(Math.random() * 9) + 2; // a = 2~10
+            
+            let questionHTML = "";
+            let correct = "";
+            let wrongs = [];
+
+            if (type === 0) {
+                // 平方差: x² - a² = (x+a)(x-a)
+                questionHTML = `x<sup>2</sup> - ${a*a}`;
+                correct = `(x + ${a})(x - ${a})`;
+                wrongs = [
+                    `(x + ${a})<sup>2</sup>`,
+                    `(x - ${a})<sup>2</sup>`,
+                    `(x + ${a*a})(x - 1)`
+                ];
+            } else if (type === 1) {
+                // 和的平方: x² + 2ax + a² = (x+a)²
+                questionHTML = `x<sup>2</sup> + ${2*a}x + ${a*a}`;
+                correct = `(x + ${a})<sup>2</sup>`;
+                wrongs = [
+                    `(x - ${a})<sup>2</sup>`,
+                    `(x + ${a})(x - ${a})`,
+                    `(x + ${2*a})<sup>2</sup>`
+                ];
+            } else {
+                // 差的平方: x² - 2ax + a² = (x-a)²
+                questionHTML = `x<sup>2</sup> - ${2*a}x + ${a*a}`;
+                correct = `(x - ${a})<sup>2</sup>`;
+                wrongs = [
+                    `(x + ${a})<sup>2</sup>`,
+                    `(x + ${a})(x - ${a})`,
+                    `(x - ${2*a})<sup>2</sup>`
+                ];
+            }
+
+            currentCorrectAnswer = correct;
+            questionDisplay.innerHTML = questionHTML;
+
+            // 組合選項並打亂
+            let options = [correct, ...wrongs];
+            options.sort(() => Math.random() - 0.5);
+
+            // 渲染選項按鈕
+            optionsContainer.innerHTML = "";
+            options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                // 隨機分配顏色
+                const colorClass = btnColors[index % btnColors.length];
+                btn.className = `cute-btn ${colorClass} text-white font-bold py-4 px-2 rounded-2xl text-lg flex items-center justify-center`;
+                btn.innerHTML = opt;
+                btn.onclick = () => checkAnswer(opt);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            gameScreen.classList.add('flex');
+            
+            score = 0;
+            updateScore();
+            isPlaying = true;
+            
+            resetBombFace();
+            nextLevel();
+        }
+
+        function nextLevel() {
+            generateQuestion();
+            // 隨著分數增加，給予的時間越來越少 (最低 3 秒)
+            timeLeft = Math.max(15.0 - (score * 0.5), 3.0);
+            updateTimeDisplay();
+            
+            resetBombFace();
+            bombContainer.className = "anim-idle relative";
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(gameLoop, 100); // 每 0.1 秒更新
+        }
+
+        function gameLoop() {
+            if (!isPlaying) return;
+            
+            timeLeft -= 0.1;
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                gameOver();
+            } else {
+                updateTimeDisplay();
+                // 進入緊張狀態 (小於 5 秒)
+                if (timeLeft <= 5.0 && bombContainer.className.includes('anim-idle')) {
+                    setPanicFace();
+                }
+            }
+        }
+
+        function updateTimeDisplay() {
+            timeDisplay.innerText = timeLeft.toFixed(1);
+            if (timeLeft <= 5.0) {
+                timeDisplay.classList.remove('text-green-500', 'text-yellow-500');
+                timeDisplay.classList.add('text-red-500');
+            } else if (timeLeft <= 10.0) {
+                timeDisplay.classList.remove('text-green-500', 'text-red-500');
+                timeDisplay.classList.add('text-yellow-500');
+            } else {
+                timeDisplay.classList.remove('text-red-500', 'text-yellow-500');
+                timeDisplay.classList.add('text-green-500');
+            }
+        }
+
+        function updateScore() {
+            scoreDisplay.innerText = score;
+        }
+
+        function checkAnswer(selectedOption) {
+            if (!isPlaying) return;
+
+            if (selectedOption === currentCorrectAnswer) {
+                // 答對
+                clearInterval(timerInterval);
+                score++;
+                updateScore();
+                setSuccessFace();
+                
+                // 延遲一下進入下一題，讓玩家看到成功動畫
+                setTimeout(() => {
+                    if(isPlaying) nextLevel();
+                }, 800);
+            } else {
+                // 答錯：扣時間作為懲罰
+                timeLeft -= 3.0;
+                // 震動畫面
+                bombContainer.classList.add('anim-panic');
+                setTimeout(() => {
+                    if(timeLeft > 5.0) bombContainer.classList.remove('anim-panic');
+                }, 300);
+                
+                if (timeLeft <= 0) {
+                    gameOver();
+                }
+            }
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            clearInterval(timerInterval);
+            setExplodedFace();
+            
+            setTimeout(() => {
+                gameScreen.classList.remove('flex');
+                gameScreen.classList.add('hidden');
+                gameOverScreen.classList.remove('hidden');
+                gameOverScreen.classList.add('flex');
+                finalScoreDisplay.innerText = score;
+                correctAnswerDisplay.innerHTML = `${questionDisplay.innerHTML} = ${currentCorrectAnswer}`;
+            }, 1000);
+        }
+
+        function resetBombFace() {
+            // 恢復普通表情
+            bombContainer.className = "anim-idle relative";
+            eyeL.setAttribute('r', '5'); eyeL.setAttribute('cy', '100'); eyeL.setAttribute('cx', '80');
+            eyeR.setAttribute('r', '5'); eyeR.setAttribute('cy', '100'); eyeR.setAttribute('cx', '120');
+            eyeL.setAttribute('fill', '#fff'); eyeR.setAttribute('fill', '#fff');
+            
+            mouth.setAttribute('d', 'M 90 115 Q 100 125 110 115'); // 微笑
+            sweat.setAttribute('opacity', '0');
+            spark.style.display = 'block';
+        }
+
+        function setPanicFace() {
+            bombContainer.className = "anim-panic relative";
+            // 放大眼睛、變成波浪嘴、顯示汗水
+            eyeL.setAttribute('r', '7');
+            eyeR.setAttribute('r', '7');
+            mouth.setAttribute('d', 'M 88 120 Q 92 115 95 120 T 102 120 T 110 120'); // 緊張嘴
+            sweat.setAttribute('opacity', '1');
+            sweat.style.animation = 'panic-shake 0.5s infinite';
+        }
+
+        function setSuccessFace() {
+            bombContainer.className = "anim-success relative";
+            // 變成 > < 眼、大笑嘴、隱藏火花
+            eyeL.setAttribute('r', '0'); // 用 path 畫 > < 所以隱藏原本的圓形
+            eyeR.setAttribute('r', '0');
+            
+            // 藉由修改嘴巴 path 來畫眼睛有點麻煩，直接覆蓋顏色並移動位置模擬閉眼微笑
+            eyeL.setAttribute('r', '6'); eyeL.setAttribute('cy', '98');
+            eyeR.setAttribute('r', '6'); eyeR.setAttribute('cy', '98');
+            eyeL.setAttribute('fill', 'none'); eyeR.setAttribute('fill', 'none');
+            
+            mouth.setAttribute('d', 'M 90 110 Q 100 130 110 110 Z'); // 大笑
+            sweat.setAttribute('opacity', '0');
+            spark.style.display = 'none'; // 熄滅引線
+        }
+
+        function setExplodedFace() {
+            bombContainer.className = "relative"; // 停止動畫
+            // 圈圈眼 (X_X)
+            eyeL.setAttribute('r', '0'); eyeR.setAttribute('r', '0');
+            mouth.setAttribute('d', 'M 90 120 Q 100 110 110 120'); // 傷心嘴
+            sweat.setAttribute('opacity', '0');
+            spark.style.display = 'none';
+        }
+
+    </script>
+</body>
+</html>
